@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEURO-FLOW | Focus Training</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+        /* --- Deep Focus Neon Aesthetic --- */
+        body {
+            background-color: #050510;
+            color: #e0e0e0;
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            touch-action: none;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            font-weight: 700;
+        }
+
+        .score-container {
+            color: #00ffff;
+        }
+
+        .time-container {
+            color: #ff00ff;
+        }
+
+        .flow-meter-wrapper {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            text-align: center;
+        }
+
+        .flow-meter-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .flow-meter-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00ffff, #ff00ff);
+            box-shadow: 0 0 20px #00ffff;
+            transition: width 0.1s linear;
+        }
+
+        .flow-text {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 16, 0.9);
+            backdrop-filter: blur(15px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+            transition: opacity 0.4s ease;
+        }
+
+        .menu-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 5rem;
+            margin: 0 0 20px 0;
+            background: linear-gradient(to right, #00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 6px;
+        }
+
+        p {
+            font-size: 1.2rem;
+            max-width: 650px;
+            text-align: center;
+            line-height: 1.6;
+            margin-bottom: 50px;
+            color: #a0a0ff;
+        }
+
+        button.btn-neon {
+            background: rgba(0, 255, 255, 0.05);
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 20px 50px;
+            font-size: 1.4rem;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        button.btn-neon:hover {
+            background: #00ffff;
+            color: #050510;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.8);
+            transform: scale(1.05);
+        }
+
+        .tutorial-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            margin-bottom: 50px;
+            text-align: center;
+        }
+
+        .tut-item div {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .tut-item span {
+            color: #888;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="score-container">SCORE: <span id="scoreVal">0</span></div>
+            <div class="time-container">TIME: <span id="timeVal">60.0</span></div>
+        </div>
+        <div class="flow-meter-wrapper">
+            <div class="flow-meter-container">
+                <div class="flow-meter-fill" id="flowFill"></div>
+            </div>
+            <div class="flow-text">Flow State</div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="menu-overlay">
+        <h1>Neuro-Flow</h1>
+        <p>
+            Système d'entraînement de l'attention.<br>
+            Entrez dans le flux. Éliminez les distractions.
+        </p>
+
+        <div class="tutorial-grid">
+            <div class="tut-item">
+                <div>▲</div>
+                <span>PILOTER</span>
+            </div>
+            <div class="tut-item">
+                <div style="color: #00ff00;">●</div>
+                <span>CIBLER</span>
+            </div>
+            <div class="tut-item">
+                <div style="color: #ffaa00;">║ ║</div>
+                <span>NAVIGUER</span>
+            </div>
+        </div>
+
+        <button class="btn-neon" id="start-btn">INITIALISER</button>
+    </div>
+
+    <div id="game-over-screen" class="menu-overlay menu-hidden">
+        <h1>SESSION TERMINÉE</h1>
+        <p>Analyse de performance terminée.</p>
+        <div style="font-size: 2.5rem; margin-bottom: 10px; color: #00ffff; text-shadow: 0 0 20px rgba(0,255,255,0.5);">
+            SCORE: <span id="final-score">0</span>
+        </div>
+        <div style="font-size: 1.2rem; margin-bottom: 40px; color: #ff00ff;">
+            Meilleur Combo: <span id="final-combo">0</span>
+        </div>
+        <button class="btn-neon" id="restart-btn">NOUVELLE SESSION</button>
+    </div>
+
+    <script>
+        /**
+         * NEURO-FLOW: ENGINE CORE v2.9 (Balanced Audio Mix)
+         */
+
+        const lerp = (start, end, t) => start * (1 - t) + end * t;
+        const randomRange = (min, max) => Math.random() * (max - min) + min;
+
+        // --- AUDIO SYSTEM ---
+        class AudioController {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.isMuted = false;
+
+                // --- PROCEDURAL MUSIC SYNTH ---
+                this.nextNoteTime = 0;
+                this.tempo = 90; // Stable rhythm
+                this.lookahead = 25.0;
+                this.scheduleAheadTime = 0.1;
+                this.current16thNote = 0;
+                this.notesInQueue = [];
+                this.isPlaying = false;
+                this.intensity = 0;
+
+                // Initialize if context ready
+                if (this.ctx) {
+                    this.brownNoiseNode = null;
+                    this.setupDrone();
+                }
+            }
+
+            setupDrone() {
+                // Brown Noise (ADHD Focus Blanket)
+                const bufferSize = 2 * this.ctx.sampleRate;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const output = buffer.getChannelData(0);
+                let lastOut = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    output[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = output[i];
+                    output[i] *= 3.5;
+                }
+
+                this.brownNoiseNode = this.ctx.createBufferSource();
+                this.brownNoiseNode.buffer = buffer;
+                this.brownNoiseNode.loop = true;
+
+                this.brownGain = this.ctx.createGain();
+                this.brownGain.gain.value = 0.05; // Base level
+
+                this.brownNoiseNode.connect(this.brownGain);
+                this.brownGain.connect(this.ctx.destination);
+
+                // Deep Bass Drone (Flow Anchor)
+                this.droneOsc = this.ctx.createOscillator();
+                this.droneGain = this.ctx.createGain();
+                this.droneOsc.type = 'sawtooth';
+                this.droneOsc.frequency.value = 55; // A1
+                this.droneGain.gain.value = 0; // Starts silent (controlled by flow)
+
+                this.droneFilter = this.ctx.createBiquadFilter();
+                this.droneFilter.type = 'lowpass';
+                this.droneFilter.frequency.value = 150;
+
+                this.droneOsc.connect(this.droneFilter);
+                this.droneFilter.connect(this.droneGain);
+                this.droneGain.connect(this.ctx.destination);
+
+                this.droneOsc.start();
+            }
+
+            startMusic() {
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+                this.nextNoteTime = this.ctx.currentTime + 0.1;
+
+                // Play brown noise constant
+                if (this.brownNoiseNode) {
+                    try { this.brownNoiseNode.start(0); } catch (e) { }
+                }
+                this.scheduler();
+            }
+
+            scheduler() {
+                if (!this.isPlaying) return;
+                while (this.nextNoteTime < this.ctx.currentTime + this.scheduleAheadTime) {
+                    this.scheduleNote(this.current16thNote, this.nextNoteTime);
+                    this.nextNote(); // Advance time
+                }
+                setTimeout(() => this.scheduler(), this.lookahead);
+            }
+
+            nextNote() {
+                const secondsPerBeat = 60.0 / this.tempo;
+                this.nextNoteTime += 0.25 * secondsPerBeat; // 16th notes
+                this.current16thNote++;
+                if (this.current16thNote === 16) {
+                    this.current16thNote = 0;
+                }
+            }
+
+            scheduleNote(beatNumber, time) {
+                // Kick (Metronome) - Every beat
+                if (beatNumber % 4 === 0) {
+                    this.playTick(time);
+                }
+
+                // Arpeggio (Melody) - Reactive
+                // Scale: A Minor Pentatonic
+                const scale = [220, 261.63, 293.66, 329.63, 392.00, 440, 523.25];
+
+                // Low flow: sparse
+                if (this.intensity > 0.1) {
+                    // Off-beat pulse
+                    if (beatNumber % 4 === 2) {
+                        const noteIdx = Math.floor(Math.random() * 3);
+                        this.playSynthNote(scale[noteIdx], time, 0.1);
+                    }
+                }
+                // High flow: complex runs
+                if (this.intensity > 0.6) {
+                    if (beatNumber % 2 === 0) {
+                        const noteIdx = Math.floor(this.intensity * 5) + (beatNumber % 3);
+                        this.playSynthNote(scale[noteIdx % scale.length], time, 0.1);
+                    }
+                }
+            }
+
+            playTick(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(100, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
+                gain.gain.setValueAtTime(0.2, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(time);
+                osc.stop(time + 0.1);
+            }
+
+            playSynthNote(freq, time, duration) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+
+                osc.type = this.intensity > 0.8 ? 'sawtooth' : 'sine';
+                osc.frequency.setValueAtTime(freq, time);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(300 + (this.intensity * 2000), time); // Filter opens with flow
+
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(0.08, time + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(time);
+                osc.stop(time + duration);
+            }
+
+            setDroneVolume(targetVol) {
+                if (this.droneGain) this.droneGain.gain.setTargetAtTime(targetVol, this.ctx.currentTime, 0.5);
+            }
+
+            updateFlowIntensity(flowMeter, maxFlow) {
+                this.intensity = Math.min(1, flowMeter / maxFlow);
+                // Boost Brown Noise slightly with intensity
+                if (this.brownGain) {
+                    this.brownGain.gain.setTargetAtTime(0.03 + (this.intensity * 0.04), this.ctx.currentTime, 0.1);
+                }
+            }
+
+            // --- SFX (Existing) ---
+            playTone(freq, type, duration, vol = 0.1) {
+                if (this.isMuted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            // Balanced SFX for ADHD (Clear but not Jarring)
+            playCollect() { this.playTone(880, 'sine', 0.1, 0.08); setTimeout(() => this.playTone(1760, 'sine', 0.2, 0.04), 50); }
+            playError() { this.playTone(150, 'sawtooth', 0.3, 0.15); this.playTone(100, 'sawtooth', 0.3, 0.15); }
+            playGatePass() { this.playTone(400, 'triangle', 0.2, 0.1); }
+            playFlowMax() { this.playTone(440, 'sine', 1.5, 0.1); this.playTone(554, 'sine', 1.5, 0.1); this.playTone(659, 'sine', 1.5, 0.1); }
+        }
+
+        // --- CLASSES ---
+
+        class InputHandler {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+                window.addEventListener('mousemove', (e) => this.updateMouse(e.clientX, e.clientY));
+                window.addEventListener('touchmove', (e) => { e.preventDefault(); this.updateMouse(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+            }
+            updateMouse(x, y) { this.mouse.x = x; this.mouse.y = y; }
+        }
+
+        class WarpLine {
+            constructor(game) {
+                this.game = game;
+                this.x = randomRange(0, game.width);
+                this.y = -100;
+                this.z = randomRange(1, 4);
+                this.length = randomRange(20, 100);
+            }
+            update() {
+                this.y += 20 * this.z;
+                if (this.y > this.game.height + 100) {
+                    this.y = -100;
+                    this.x = randomRange(0, this.game.width);
+                }
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(200, 200, 255, 0.3)';
+                ctx.lineWidth = 1 * this.z;
+                ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x, this.y - this.length); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, speed, life) {
+                this.x = x; this.y = y; this.color = color;
+                this.vx = (Math.random() - 0.5) * speed; this.vy = (Math.random() - 0.5) * speed;
+                this.life = life; this.maxLife = life; this.size = Math.random() * 4 + 2;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life--; this.size *= 0.95; }
+            draw(ctx) {
+                ctx.save(); ctx.globalAlpha = this.life / this.maxLife; ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            }
+        }
+
+        class Player {
+            constructor(game) {
+                this.game = game; this.x = game.width / 2; this.y = game.height - 100; this.size = 20; this.color = '#00ffff'; this.trail = [];
+            }
+            update(deltaTime) {
+                const targetX = this.game.input.mouse.x; const targetY = this.game.input.mouse.y;
+                const clampedY = Math.max(this.game.height * 0.5, Math.min(targetY, this.game.height - 50));
+                this.x = lerp(this.x, targetX, 0.15 * (deltaTime / 16));
+                this.y = lerp(this.y, clampedY, 0.15 * (deltaTime / 16));
+
+                let trailColor = '#00ffff';
+                let emitRate = 2;
+                if (this.game.isHyperFocus) {
+                    trailColor = '#ff55ff';
+                    emitRate = 1;
+                }
+
+                if (this.game.frame % emitRate === 0) this.trail.push(new Particle(this.x, this.y + 15, trailColor, 2, 15));
+            }
+            draw(ctx) {
+                this.trail.forEach((p, index) => { p.update(); p.draw(ctx); if (p.life <= 0) this.trail.splice(index, 1); });
+                ctx.save(); ctx.translate(this.x, this.y);
+
+                ctx.shadowBlur = this.game.isHyperFocus ? 40 : 25;
+                ctx.shadowColor = this.game.isHyperFocus ? '#ff00ff' : this.color;
+
+                ctx.fillStyle = this.game.isHyperFocus ? '#ffebff' : this.color;
+                ctx.beginPath(); ctx.moveTo(0, -this.size); ctx.lineTo(this.size, this.size);
+                ctx.lineTo(0, this.size * 0.7); ctx.lineTo(-this.size, this.size); ctx.closePath(); ctx.fill(); ctx.restore();
+            }
+        }
+
+        class Target {
+            constructor(game) {
+                this.game = game; this.x = randomRange(50, game.width - 50); this.y = -50; this.radius = 25;
+                this.speed = 3 + (game.flowMeter / 20); this.markedForDeletion = false; this.pulseTimer = 0;
+            }
+            update() {
+                if (this.game.isHyperFocus) {
+                    const dx = this.game.player.x - this.x; const dy = this.game.player.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 450) {
+                        this.x += dx * 0.12;
+                        this.y += dy * 0.12;
+                    }
+                }
+                this.y += this.speed; this.pulseTimer += 0.1; this.radius = 25 + Math.sin(this.pulseTimer) * 5;
+                if (this.y > this.game.height + 50) this.markedForDeletion = true;
+            }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.shadowBlur = 20; ctx.shadowColor = '#00ff00';
+                ctx.fillStyle = '#00ff00'; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            }
+        }
+
+        class Distraction {
+            constructor(game) {
+                this.game = game; this.x = randomRange(50, game.width - 50); this.y = -50; this.radius = 20;
+                this.speed = 5 + (game.flowMeter / 20); this.markedForDeletion = false; this.angle = 0;
+            }
+            update() { this.y += this.speed; this.angle += 0.05; if (this.y > this.game.height + 50) this.markedForDeletion = true; }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); ctx.shadowBlur = 15; ctx.shadowColor = '#ff0000';
+                ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-12, -12); ctx.lineTo(12, 12);
+                ctx.moveTo(12, -12); ctx.lineTo(-12, 12); ctx.stroke(); ctx.restore();
+            }
+        }
+
+        class Gate {
+            constructor(game) {
+                this.game = game; this.gamewidth = game.width; this.y = -100; this.height = 30;
+                this.gapSize = 250 - (game.flowMeter);
+                this.gapX = randomRange(100, game.width - 100 - this.gapSize);
+                this.speed = 3 + (game.flowMeter / 20); this.markedForDeletion = false; this.passed = false;
+            }
+            update() { this.y += this.speed; if (this.y > this.game.height + 100) this.markedForDeletion = true; }
+            draw(ctx) {
+                ctx.save(); ctx.shadowBlur = 20; ctx.shadowColor = '#ffaa00'; ctx.fillStyle = '#ffaa00';
+                ctx.fillRect(0, this.y, this.gapX, this.height);
+                ctx.fillRect(this.gapX + this.gapSize, this.y, this.gamewidth - (this.gapX + this.gapSize), this.height);
+                ctx.fillStyle = 'rgba(255, 170, 0, 0.1)'; ctx.fillRect(this.gapX, this.y, this.gapSize, this.height); ctx.restore();
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.width = window.innerWidth; this.height = window.innerHeight;
+
+                this.audio = new AudioController();
+                this.input = new InputHandler(this.canvas);
+                this.player = new Player(this);
+
+                this.targets = []; this.distractions = []; this.gates = []; this.particles = [];
+                this.warpLines = [];
+                for (let i = 0; i < 30; i++) this.warpLines.push(new WarpLine(this));
+
+                this.state = 'MENU'; this.lastTime = 0; this.frame = 0;
+                this.score = 0; this.combo = 0; this.maxCombo = 0; this.gameTime = 60; this.flowMeter = 0; this.maxFlow = 100;
+                this.isHyperFocus = false;
+                this.shakeTimer = 0;
+
+                this.targetTimer = 0; this.targetInterval = 800;
+                this.gateTimer = 0; this.gateInterval = 2500;
+
+                this.startScreen = document.getElementById('start-screen');
+                this.gameOverScreen = document.getElementById('game-over-screen');
+                this.scoreEl = document.getElementById('scoreVal');
+                this.timeEl = document.getElementById('timeVal');
+                this.flowFillEl = document.getElementById('flowFill');
+                this.finalScoreEl = document.getElementById('final-score');
+                this.finalComboEl = document.getElementById('final-combo');
+
+                document.getElementById('start-btn').addEventListener('click', () => this.start());
+                document.getElementById('restart-btn').addEventListener('click', () => this.start());
+                window.addEventListener('resize', () => this.resize()); this.resize();
+                this.loop(0);
+            }
+
+            resize() {
+                this.width = window.innerWidth; this.height = window.innerHeight;
+                this.canvas.width = this.width; this.canvas.height = this.height;
+            }
+
+            start() {
+                if (this.audio.ctx.state === 'suspended') this.audio.ctx.resume();
+
+                this.state = 'PLAYING';
+                this.startScreen.classList.add('menu-hidden');
+                this.gameOverScreen.classList.add('menu-hidden');
+                this.score = 0; this.combo = 0; this.maxCombo = 0; this.gameTime = 60; this.flowMeter = 0;
+                this.targets = []; this.distractions = []; this.gates = []; this.particles = [];
+                this.player = new Player(this);
+                this.canvas.style.cursor = 'none';
+
+                this.audio.startMusic(); // Start Procedural Music
+            }
+
+            addParticle(x, y, color, count) {
+                for (let i = 0; i < count; i++) this.particles.push(new Particle(x, y, color, 8, 40));
+            }
+
+            triggerShake(duration) {
+                this.shakeTimer = duration;
+            }
+
+            update(deltaTime) {
+                if (this.state !== 'PLAYING') return;
+                this.gameTime -= deltaTime / 1000; if (this.gameTime <= 0) this.gameOver();
+
+                // --- AUDIO FLOW SYNC ---
+                this.audio.updateFlowIntensity(this.flowMeter, this.maxFlow);
+
+                // --- FLOW MECHANIC UPDATE ---
+                if (this.flowMeter >= this.maxFlow) {
+                    if (!this.isHyperFocus) {
+                        this.isHyperFocus = true;
+                        this.audio.playFlowMax();
+                        this.audio.setDroneVolume(0.15); // Fade in extra drone
+                        this.triggerShake(0.5);
+                    }
+                } else {
+                    if (this.isHyperFocus) {
+                        this.isHyperFocus = false;
+                        this.audio.setDroneVolume(0);
+                    }
+                }
+
+                if (this.shakeTimer > 0) this.shakeTimer -= deltaTime / 1000;
+
+                this.player.update(deltaTime);
+                if (this.isHyperFocus) this.warpLines.forEach(w => w.update());
+
+                if (this.targetTimer > this.targetInterval) {
+                    this.targets.push(new Target(this));
+                    if (Math.random() < 0.2 + (this.flowMeter / 200)) this.distractions.push(new Distraction(this));
+                    this.targetTimer = 0;
+                } else this.targetTimer += deltaTime;
+
+                if (this.gateTimer > this.gateInterval) {
+                    this.gates.push(new Gate(this)); this.gateTimer = 0;
+                } else this.gateTimer += deltaTime;
+
+                this.targets.forEach(target => {
+                    target.update();
+                    const dx = target.x - this.player.x; const dy = target.y - this.player.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < target.radius + this.player.size) {
+                        target.markedForDeletion = true;
+                        const multiplier = this.isHyperFocus ? 2 : 1;
+                        this.score += (10 + Math.floor(this.flowMeter / 10)) * multiplier;
+                        this.combo++;
+                        this.flowMeter = Math.min(this.maxFlow, this.flowMeter + 5);
+                        this.addParticle(target.x, target.y, '#00ff00', 15);
+                        this.audio.playCollect();
+                    }
+                });
+
+                this.distractions.forEach(d => {
+                    d.update();
+                    const dx = d.x - this.player.x; const dy = d.y - this.player.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < d.radius + this.player.size) {
+                        d.markedForDeletion = true;
+                        this.score = Math.max(0, this.score - 50);
+                        this.combo = 0;
+                        this.flowMeter = Math.max(0, this.flowMeter - 30);
+                        this.isHyperFocus = false;
+                        this.audio.setDroneVolume(0);
+                        this.addParticle(d.x, d.y, '#ff0000', 20);
+                        this.audio.playError();
+                        this.triggerShake(0.3);
+                    }
+                });
+
+                this.gates.forEach(gate => {
+                    gate.update();
+                    if (gate.y + gate.height > this.player.y - this.player.size && gate.y < this.player.y + this.player.size) {
+                        if (!gate.passed) {
+                            const pLeft = this.player.x - this.player.size; const pRight = this.player.x + this.player.size;
+                            if (pLeft < gate.gapX || pRight > gate.gapX + gate.gapSize) {
+                                gate.markedForDeletion = true;
+                                this.flowMeter = Math.max(0, this.flowMeter - 40);
+                                this.combo = 0;
+                                this.isHyperFocus = false;
+                                this.audio.setDroneVolume(0);
+                                this.addParticle(this.player.x, this.player.y, '#ffaa00', 10);
+                                this.audio.playError();
+                                this.triggerShake(0.2);
+                            }
+                        }
+                    }
+                    if (gate.y > this.player.y + this.player.size && !gate.passed && !gate.markedForDeletion) {
+                        gate.passed = true;
+                        const multiplier = this.isHyperFocus ? 2 : 1;
+                        this.score += 50 * multiplier;
+                        this.flowMeter = Math.min(this.maxFlow, this.flowMeter + 10);
+                        this.addParticle(gate.gapX + gate.gapSize / 2, gate.y, '#ffffff', 5);
+                        this.audio.playGatePass();
+                    }
+                });
+
+                this.targets = this.targets.filter(t => !t.markedForDeletion);
+                this.distractions = this.distractions.filter(d => !d.markedForDeletion);
+                this.gates = this.gates.filter(g => !g.markedForDeletion);
+                this.particles.forEach(p => p.update());
+                this.particles = this.particles.filter(p => p.life > 0);
+
+                this.scoreEl.innerText = Math.floor(this.score);
+                this.timeEl.innerText = this.gameTime.toFixed(1);
+                this.flowFillEl.style.width = `${(this.flowMeter / this.maxFlow) * 100}%`;
+
+                if (this.isHyperFocus) {
+                    this.flowFillEl.style.boxShadow = `0 0 30px #ff00ff`;
+                    this.flowFillEl.style.background = `linear-gradient(90deg, #ff00ff, #ffffff)`;
+                } else {
+                    this.flowFillEl.style.boxShadow = `0 0 20px #00ffff`;
+                    this.flowFillEl.style.background = `linear-gradient(90deg, #00ffff, #ff00ff)`;
+                }
+
+                if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+            }
+
+            draw() {
+                this.ctx.save();
+
+                if (this.shakeTimer > 0) {
+                    const shakeAmount = 5;
+                    const dx = (Math.random() - 0.5) * shakeAmount;
+                    const dy = (Math.random() - 0.5) * shakeAmount;
+                    this.ctx.translate(dx, dy);
+                }
+
+                this.ctx.fillStyle = this.isHyperFocus ? '#050015' : '#050010';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+
+                this.drawGrid();
+
+                if (this.isHyperFocus) {
+                    this.warpLines.forEach(w => w.draw(this.ctx));
+                }
+
+                this.particles.forEach(p => p.draw(this.ctx));
+                this.gates.forEach(g => g.draw(this.ctx));
+                this.targets.forEach(t => t.draw(this.ctx));
+                this.distractions.forEach(d => d.draw(this.ctx));
+
+                if (this.state === 'PLAYING') this.player.draw(this.ctx);
+
+                if (this.isHyperFocus) {
+                    const gradient = this.ctx.createRadialGradient(this.width / 2, this.height / 2, this.height * 0.4, this.width / 2, this.height / 2, this.height);
+                    gradient.addColorStop(0, 'transparent');
+                    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.fillRect(0, 0, this.width, this.height);
+                }
+
+                this.ctx.restore();
+            }
+
+            drawGrid() {
+                this.ctx.strokeStyle = this.isHyperFocus ? 'rgba(255, 0, 255, 0.15)' : 'rgba(0, 255, 255, 0.08)';
+                this.ctx.lineWidth = 1;
+                const gridSize = 100;
+                for (let x = 0; x <= this.width; x += gridSize) {
+                    this.ctx.beginPath(); this.ctx.moveTo(x, 0); this.ctx.lineTo(x, this.height); this.ctx.stroke();
+                }
+                const speed = this.isHyperFocus ? 15 : 2 + (this.flowMeter / 10);
+                const offsetY = (this.frame * speed) % gridSize;
+                for (let y = offsetY; y <= this.height; y += gridSize) {
+                    this.ctx.beginPath(); this.ctx.moveTo(0, y); this.ctx.lineTo(this.width, y); this.ctx.stroke();
+                }
+            }
+
+            gameOver() {
+                this.state = 'GAMEOVER';
+                this.canvas.style.cursor = 'default';
+                this.gameOverScreen.classList.remove('menu-hidden');
+
+                // Stop music and drone
+                this.audio.isPlaying = false;
+                if (this.audio.brownNoiseNode) this.audio.brownNoiseNode.stop();
+                this.audio.setDroneVolume(0);
+
+                this.finalScoreEl.innerText = Math.floor(this.score);
+                this.finalComboEl.innerText = this.maxCombo;
+            }
+
+            loop(timestamp) {
+                const deltaTime = timestamp - this.lastTime;
+                this.lastTime = timestamp;
+                this.frame++;
+
+                this.update(deltaTime);
+                this.draw();
+
+                requestAnimationFrame((t) => this.loop(t));
+            }
+        }
+
+        window.onload = () => {
+            const game = new Game();
+        };
+
+    </script>
+</body>
+
+</html>
