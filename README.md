@@ -45,4 +45,3 @@ We stripped away the noise.
 *Designed for the ADHD Brain. Perfected for Everyone.*
 
 **© 2025 Kévin Falck**
-*Architected with Antigravity*

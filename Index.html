@@ -3,7 +3,11 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#050510">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>NEURO-FLOW | Focus Training</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
@@ -18,10 +22,12 @@
             overflow: hidden;
             touch-action: none;
             height: 100vh;
+            width: 100vw;
             display: flex;
             justify-content: center;
             align-items: center;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         #gameCanvas {
@@ -42,6 +48,8 @@
             flex-direction: column;
             justify-content: space-between;
             padding: 20px;
+            padding-top: env(safe-area-inset-top, 20px);
+            /* Notch safe */
             box-sizing: border-box;
         }
 
@@ -64,9 +72,11 @@
         .flow-meter-wrapper {
             position: absolute;
             bottom: 30px;
+            bottom: max(30px, env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
-            width: 400px;
+            width: 80%;
+            max-width: 400px;
             text-align: center;
         }
 
@@ -119,7 +129,8 @@
         }
 
         h1 {
-            font-size: 5rem;
+            font-size: clamp(3rem, 10vw, 5rem);
+            /* Responsive font */
             margin: 0 0 20px 0;
             background: linear-gradient(to right, #00ffff, #ff00ff);
             -webkit-background-clip: text;
@@ -127,6 +138,7 @@
             text-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
             text-transform: uppercase;
             letter-spacing: 6px;
+            text-align: center;
         }
 
         p {
@@ -136,6 +148,7 @@
             line-height: 1.6;
             margin-bottom: 50px;
             color: #a0a0ff;
+            padding: 0 20px;
         }
 
         button.btn-neon {
@@ -153,9 +166,11 @@
             transition: all 0.2s;
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
             border-radius: 4px;
+            touch-action: manipulation;
         }
 
-        button.btn-neon:hover {
+        button.btn-neon:hover,
+        button.btn-neon:active {
             background: #00ffff;
             color: #050510;
             box-shadow: 0 0 40px rgba(0, 255, 255, 0.8);
@@ -165,7 +180,7 @@
         .tutorial-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 40px;
+            gap: 20px;
             margin-bottom: 50px;
             text-align: center;
         }
@@ -181,10 +196,38 @@
             font-size: 0.9rem;
             letter-spacing: 1px;
         }
+
+        /* --- Orientation Lock Warning --- */
+        #orientation-warning {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #050510;
+            z-index: 200;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #00ffff;
+        }
+
+        @media screen and (orientation: portrait) {
+            #orientation-warning {
+                display: flex;
+            }
+        }
     </style>
 </head>
 
 <body>
+
+    <div id="orientation-warning">
+        <div style="font-size: 3rem; margin-bottom: 20px;">⟳</div>
+        <p>Tournez votre appareil<br>pour une expérience optimale.</p>
+    </div>
 
     <canvas id="gameCanvas"></canvas>
 
@@ -240,7 +283,7 @@
 
     <script>
         /**
-         * NEURO-FLOW: ENGINE CORE v2.9 (Balanced Audio Mix)
+         * NEURO-FLOW: ENGINE CORE v3.0 (Mobile Excellence Edition)
          */
 
         const lerp = (start, end, t) => start * (1 - t) + end * t;
@@ -254,7 +297,7 @@
 
                 // --- PROCEDURAL MUSIC SYNTH ---
                 this.nextNoteTime = 0;
-                this.tempo = 90; // Stable rhythm
+                this.tempo = 90;
                 this.lookahead = 25.0;
                 this.scheduleAheadTime = 0.1;
                 this.current16thNote = 0;
@@ -262,15 +305,19 @@
                 this.isPlaying = false;
                 this.intensity = 0;
 
-                // Initialize if context ready
                 if (this.ctx) {
                     this.brownNoiseNode = null;
                     this.setupDrone();
                 }
             }
 
+            resume() {
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
             setupDrone() {
-                // Brown Noise (ADHD Focus Blanket)
                 const bufferSize = 2 * this.ctx.sampleRate;
                 const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const output = buffer.getChannelData(0);
@@ -287,17 +334,17 @@
                 this.brownNoiseNode.loop = true;
 
                 this.brownGain = this.ctx.createGain();
-                this.brownGain.gain.value = 0.05; // Base level
+                this.brownGain.gain.value = 0.05;
 
                 this.brownNoiseNode.connect(this.brownGain);
                 this.brownGain.connect(this.ctx.destination);
 
-                // Deep Bass Drone (Flow Anchor)
+                // Deep Bass Drone
                 this.droneOsc = this.ctx.createOscillator();
                 this.droneGain = this.ctx.createGain();
                 this.droneOsc.type = 'sawtooth';
-                this.droneOsc.frequency.value = 55; // A1
-                this.droneGain.gain.value = 0; // Starts silent (controlled by flow)
+                this.droneOsc.frequency.value = 55;
+                this.droneGain.gain.value = 0;
 
                 this.droneFilter = this.ctx.createBiquadFilter();
                 this.droneFilter.type = 'lowpass';
@@ -314,8 +361,6 @@
                 if (this.isPlaying) return;
                 this.isPlaying = true;
                 this.nextNoteTime = this.ctx.currentTime + 0.1;
-
-                // Play brown noise constant
                 if (this.brownNoiseNode) {
                     try { this.brownNoiseNode.start(0); } catch (e) { }
                 }
@@ -326,14 +371,14 @@
                 if (!this.isPlaying) return;
                 while (this.nextNoteTime < this.ctx.currentTime + this.scheduleAheadTime) {
                     this.scheduleNote(this.current16thNote, this.nextNoteTime);
-                    this.nextNote(); // Advance time
+                    this.nextNote();
                 }
                 setTimeout(() => this.scheduler(), this.lookahead);
             }
 
             nextNote() {
                 const secondsPerBeat = 60.0 / this.tempo;
-                this.nextNoteTime += 0.25 * secondsPerBeat; // 16th notes
+                this.nextNoteTime += 0.25 * secondsPerBeat;
                 this.current16thNote++;
                 if (this.current16thNote === 16) {
                     this.current16thNote = 0;
@@ -341,24 +386,17 @@
             }
 
             scheduleNote(beatNumber, time) {
-                // Kick (Metronome) - Every beat
                 if (beatNumber % 4 === 0) {
                     this.playTick(time);
                 }
-
-                // Arpeggio (Melody) - Reactive
-                // Scale: A Minor Pentatonic
                 const scale = [220, 261.63, 293.66, 329.63, 392.00, 440, 523.25];
 
-                // Low flow: sparse
                 if (this.intensity > 0.1) {
-                    // Off-beat pulse
                     if (beatNumber % 4 === 2) {
                         const noteIdx = Math.floor(Math.random() * 3);
                         this.playSynthNote(scale[noteIdx], time, 0.1);
                     }
                 }
-                // High flow: complex runs
                 if (this.intensity > 0.6) {
                     if (beatNumber % 2 === 0) {
                         const noteIdx = Math.floor(this.intensity * 5) + (beatNumber % 3);
@@ -390,7 +428,7 @@
                 osc.frequency.setValueAtTime(freq, time);
 
                 filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(300 + (this.intensity * 2000), time); // Filter opens with flow
+                filter.frequency.setValueAtTime(300 + (this.intensity * 2000), time);
 
                 gain.gain.setValueAtTime(0, time);
                 gain.gain.linearRampToValueAtTime(0.08, time + 0.02);
@@ -410,13 +448,11 @@
 
             updateFlowIntensity(flowMeter, maxFlow) {
                 this.intensity = Math.min(1, flowMeter / maxFlow);
-                // Boost Brown Noise slightly with intensity
                 if (this.brownGain) {
                     this.brownGain.gain.setTargetAtTime(0.03 + (this.intensity * 0.04), this.ctx.currentTime, 0.1);
                 }
             }
 
-            // --- SFX (Existing) ---
             playTone(freq, type, duration, vol = 0.1) {
                 if (this.isMuted || !this.ctx) return;
                 const osc = this.ctx.createOscillator();
@@ -431,7 +467,6 @@
                 osc.stop(this.ctx.currentTime + duration);
             }
 
-            // Balanced SFX for ADHD (Clear but not Jarring)
             playCollect() { this.playTone(880, 'sine', 0.1, 0.08); setTimeout(() => this.playTone(1760, 'sine', 0.2, 0.04), 50); }
             playError() { this.playTone(150, 'sawtooth', 0.3, 0.15); this.playTone(100, 'sawtooth', 0.3, 0.15); }
             playGatePass() { this.playTone(400, 'triangle', 0.2, 0.1); }
@@ -441,12 +476,35 @@
         // --- CLASSES ---
 
         class InputHandler {
-            constructor(canvas) {
-                this.canvas = canvas;
+            constructor(game) {
+                this.game = game;
                 this.mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-                window.addEventListener('mousemove', (e) => this.updateMouse(e.clientX, e.clientY));
-                window.addEventListener('touchmove', (e) => { e.preventDefault(); this.updateMouse(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+                this.isTouch = false;
+
+                // Mouse
+                window.addEventListener('mousemove', (e) => {
+                    this.isTouch = false;
+                    this.updateMouse(e.clientX, e.clientY);
+                });
+
+                // Mobile Touch
+                const touchHandler = (e) => {
+                    e.preventDefault(); // Prevent scrolling
+                    this.isTouch = true;
+                    // Audio Unlock
+                    this.game.audio.resume();
+
+                    const touch = e.touches[0];
+                    // --- STEP 1: TOUCH OFFSET ---
+                    // Shift play target up by 120px so finger doesn't hide ship
+                    const targetY = touch.clientY - 120;
+                    this.updateMouse(touch.clientX, targetY);
+                };
+
+                window.addEventListener('touchmove', touchHandler, { passive: false });
+                window.addEventListener('touchstart', touchHandler, { passive: false });
             }
+            // Clamping done in Player class
             updateMouse(x, y) { this.mouse.x = x; this.mouse.y = y; }
         }
 
@@ -493,7 +551,9 @@
             }
             update(deltaTime) {
                 const targetX = this.game.input.mouse.x; const targetY = this.game.input.mouse.y;
+                // Add vertical clamp to keep player on screen
                 const clampedY = Math.max(this.game.height * 0.5, Math.min(targetY, this.game.height - 50));
+
                 this.x = lerp(this.x, targetX, 0.15 * (deltaTime / 16));
                 this.y = lerp(this.y, clampedY, 0.15 * (deltaTime / 16));
 
@@ -576,10 +636,14 @@
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
                 this.ctx = this.canvas.getContext('2d');
-                this.width = window.innerWidth; this.height = window.innerHeight;
+
+                // Initialize sizing early
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.dpr = window.devicePixelRatio || 1;
 
                 this.audio = new AudioController();
-                this.input = new InputHandler(this.canvas);
+                this.input = new InputHandler(this); // Pass game ref logic
                 this.player = new Player(this);
 
                 this.targets = []; this.distractions = []; this.gates = []; this.particles = [];
@@ -591,6 +655,7 @@
                 this.isHyperFocus = false;
                 this.shakeTimer = 0;
 
+                // Mobile optimized timers
                 this.targetTimer = 0; this.targetInterval = 800;
                 this.gateTimer = 0; this.gateInterval = 2500;
 
@@ -604,17 +669,41 @@
 
                 document.getElementById('start-btn').addEventListener('click', () => this.start());
                 document.getElementById('restart-btn').addEventListener('click', () => this.start());
-                window.addEventListener('resize', () => this.resize()); this.resize();
+
+                // --- STEP 10: Visibility API ---
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden && this.state === 'PLAYING') {
+                        // Optional: Pause game logic here if requested
+                        this.audio.setDroneVolume(0);
+                    } else if (!document.hidden && this.state === 'PLAYING') {
+                        if (this.isHyperFocus) this.audio.setDroneVolume(0.15);
+                    }
+                });
+
+                window.addEventListener('resize', () => this.resize());
+                this.resize(); // Initial call
                 this.loop(0);
             }
 
             resize() {
-                this.width = window.innerWidth; this.height = window.innerHeight;
-                this.canvas.width = this.width; this.canvas.height = this.height;
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+
+                // --- STEP 2: RETINA SUPPORT ---
+                this.canvas.width = this.width * this.dpr;
+                this.canvas.height = this.height * this.dpr;
+                this.ctx.scale(this.dpr, this.dpr);
+            }
+
+            haptic(pattern) {
+                // --- STEP 5: HAPTICS ---
+                if (navigator.vibrate) {
+                    navigator.vibrate(pattern);
+                }
             }
 
             start() {
-                if (this.audio.ctx.state === 'suspended') this.audio.ctx.resume();
+                this.audio.resume();
 
                 this.state = 'PLAYING';
                 this.startScreen.classList.add('menu-hidden');
@@ -624,11 +713,14 @@
                 this.player = new Player(this);
                 this.canvas.style.cursor = 'none';
 
-                this.audio.startMusic(); // Start Procedural Music
+                this.audio.startMusic();
             }
 
             addParticle(x, y, color, count) {
-                for (let i = 0; i < count; i++) this.particles.push(new Particle(x, y, color, 8, 40));
+                // --- STEP 6: OPTIMIZATION ---
+                const isMobile = this.width < 600;
+                const actualCount = isMobile ? Math.floor(count / 2) : count;
+                for (let i = 0; i < actualCount; i++) this.particles.push(new Particle(x, y, color, 8, 40));
             }
 
             triggerShake(duration) {
@@ -647,8 +739,9 @@
                     if (!this.isHyperFocus) {
                         this.isHyperFocus = true;
                         this.audio.playFlowMax();
-                        this.audio.setDroneVolume(0.15); // Fade in extra drone
+                        this.audio.setDroneVolume(0.15);
                         this.triggerShake(0.5);
+                        this.haptic([50, 50, 50]); // Heartbeat enter
                     }
                 } else {
                     if (this.isHyperFocus) {
@@ -675,7 +768,9 @@
                 this.targets.forEach(target => {
                     target.update();
                     const dx = target.x - this.player.x; const dy = target.y - this.player.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < target.radius + this.player.size) {
+                    // --- STEP 4: HITBOX ---
+                    // Hitbox slightly reduced (0.8) for better feel
+                    if (Math.sqrt(dx * dx + dy * dy) < (target.radius + this.player.size) * 0.9) {
                         target.markedForDeletion = true;
                         const multiplier = this.isHyperFocus ? 2 : 1;
                         this.score += (10 + Math.floor(this.flowMeter / 10)) * multiplier;
@@ -683,13 +778,14 @@
                         this.flowMeter = Math.min(this.maxFlow, this.flowMeter + 5);
                         this.addParticle(target.x, target.y, '#00ff00', 15);
                         this.audio.playCollect();
+                        this.haptic(10); // Light tap
                     }
                 });
 
                 this.distractions.forEach(d => {
                     d.update();
                     const dx = d.x - this.player.x; const dy = d.y - this.player.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < d.radius + this.player.size) {
+                    if (Math.sqrt(dx * dx + dy * dy) < (d.radius + this.player.size) * 0.9) {
                         d.markedForDeletion = true;
                         this.score = Math.max(0, this.score - 50);
                         this.combo = 0;
@@ -699,6 +795,7 @@
                         this.addParticle(d.x, d.y, '#ff0000', 20);
                         this.audio.playError();
                         this.triggerShake(0.3);
+                        this.haptic(50); // Heavy error
                     }
                 });
 
@@ -716,6 +813,7 @@
                                 this.addParticle(this.player.x, this.player.y, '#ffaa00', 10);
                                 this.audio.playError();
                                 this.triggerShake(0.2);
+                                this.haptic(50);
                             }
                         }
                     }
@@ -806,7 +904,6 @@
                 this.canvas.style.cursor = 'default';
                 this.gameOverScreen.classList.remove('menu-hidden');
 
-                // Stop music and drone
                 this.audio.isPlaying = false;
                 if (this.audio.brownNoiseNode) this.audio.brownNoiseNode.stop();
                 this.audio.setDroneVolume(0);
